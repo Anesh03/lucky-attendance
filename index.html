@@ -299,6 +299,7 @@
 
     const designationMap = [
   // --- Safety & Permit to Work (PTW) ---
+  { key: "Owner", label: "Owner" },
   { key: "PTW SUPERVISOR", label: "PTW Supervisor" },
   { key: "PTW SUP", label: "PTW Supervisor" },
   { key: "PTW", label: "PTW" },
@@ -381,10 +382,6 @@
   { key: "Shuttering", label: "Shuttering" },
   { key: "Steel Fixer", label: "Steel Fixer" },
 
-
-
-
-
   // --- Other Trades ---
   { key: "WELDER", label: "Welder" },
   { key: "WELD", label: "Welder" },
@@ -427,7 +424,6 @@
   { key: "LABOR", label: "Labor" },
   { key: "LABOUR", label: "Labor" },
   { key: "LAB", label: "Labor" }
-
 
 ];
     function switchTab(tab) {
@@ -617,24 +613,37 @@
       let currentYear = d.getFullYear();
       let allMonths = [];
       
-      for(let y = currentYear - 1; y <= currentYear + 1; y++) {
-        for(let m = 1; m <= 12; m++) allMonths.push(`${y}-${String(m).padStart(2,'0')}`);
+      // UPDATED: Generate all months from Year 2002 to 2050
+      for(let y = 2002; y <= 2050; y++) {
+        for(let m = 1; m <= 12; m++) {
+          allMonths.push(`${y}-${String(m).padStart(2,'0')}`);
+        }
       }
       
       const dbMonths = Object.keys(db);
+      // Combine saved DB months with the 2002-2050 calendar and sort descending
       let combined = [...new Set([...allMonths, ...dbMonths])].sort().reverse();
       
       combined.forEach(k => {
         let opt = document.createElement('option');
         opt.value = k; 
-        let dateObj = new Date(k + "-01");
+        // Format the date securely for cross-browser display
+        const [yyyy, mm] = k.split('-');
+        let dateObj = new Date(parseInt(yyyy), parseInt(mm) - 1, 1);
         opt.text = dateObj.toLocaleString('default', { month: 'long', year: 'numeric' });
         select.appendChild(opt);
       });
       
+      // UPDATED: Auto-select current month/year by default
       let nowStr = `${currentYear}-${String(d.getMonth()+1).padStart(2,'0')}`;
-      if(currentVal && combined.includes(currentVal)) select.value = currentVal;
-      else select.value = nowStr;
+      
+      if (currentVal && combined.includes(currentVal)) {
+        select.value = currentVal; // Keep currently selected if already choosing
+      } else if (combined.includes(nowStr)) {
+        select.value = nowStr; // Auto-select current real-world date
+      } else {
+        select.selectedIndex = 0; // Fallback
+      }
     }
 
     function initMonthStructure(monthKey) {
