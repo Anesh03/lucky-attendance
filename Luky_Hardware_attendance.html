@@ -1,0 +1,1121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Lucky Hardware - Master Attendance System</title>
+  
+  <!-- ExcelJS & FileSaver for True .xlsx Generation -->
+  <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/file-saver@2.0.5/dist/FileSaver.min.js"></script>
+
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    body { background: #eef2f6; color: #2d3748; padding-bottom: 40px; }
+
+    /* Login Modal Styles */
+    .auth-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(26, 54, 93, 0.95); display: flex; align-items: center; justify-content: center; z-index: 99999; }
+    .auth-card { background: #ffffff; padding: 30px; border-radius: 8px; width: 360px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); text-align: center; }
+    .auth-card h3 { color: #1a365d; margin-bottom: 8px; font-size: 20px; text-transform: uppercase; }
+    .auth-card p { color: #718096; font-size: 13px; margin-bottom: 20px; }
+    .auth-card input { width: 100%; padding: 10px; border: 1px solid #cbd5e0; border-radius: 4px; margin-bottom: 12px; font-size: 14px; outline: none; }
+    .auth-card input:focus { border-color: #2b6cb0; }
+    .auth-card button { width: 100%; padding: 10px; font-size: 14px; margin-top: 5px; cursor: pointer; background: #2b6cb0; color: white; border: none; border-radius: 4px; font-weight: bold; transition: 0.2s;}
+    .auth-card button:hover { background: #2c5282; }
+    .auth-error { color: #e53e3e; font-size: 12px; margin-top: 8px; display: none; font-weight: bold; }
+
+    /* Navigation */
+    .nav-bar { background: #1a365d; padding: 15px 20px; display: flex; gap: 15px; color: white; margin-bottom: 20px; align-items: center; }
+    .nav-bar h2 { font-size: 18px; margin-right: auto; }
+    .tab-btn { background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: white; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-weight: 600; transition: 0.2s; }
+    .tab-btn.active, .tab-btn:hover { background: #3182ce; border-color: #3182ce; }
+
+    /* Containers */
+    .app-container { max-width: 900px; margin: 0 auto 20px; background: #ffffff; padding: 20px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+    .app-container h3 { margin-bottom: 6px; font-size: 16px; color: #1a365d; }
+    textarea { width: 100%; height: 140px; padding: 12px; font-size: 13px; border: 1px solid #cbd5e0; border-radius: 6px; font-family: monospace; outline: none; resize: vertical; margin-bottom: 10px; }
+    textarea:focus { border-color: #2b6cb0; }
+    
+    .btn-row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+    button { padding: 8px 14px; font-size: 13px; font-weight: 600; border: none; border-radius: 6px; cursor: pointer; transition: 0.15s; }
+    .btn-primary { background: #2b6cb0; color: white; }
+    .btn-primary:hover { background: #2c5282; }
+    .btn-success { background: #38a169; color: white; }
+    .btn-success:hover { background: #2f855a; }
+    .btn-warning { background: #d69e2e; color: white; }
+    .btn-warning:hover { background: #b7791f; }
+    .btn-danger { background: #e53e3e; color: white; }
+    .btn-danger:hover { background: #c53030; }
+
+    .admin-input, .admin-select { padding: 7px 10px; font-size: 13px; border: 1px solid #cbd5e0; border-radius: 4px; outline: none; background: #fff; }
+    .admin-input:focus, .admin-select:focus { border-color: #2b6cb0; }
+    #toast { display: none; background: #38a169; color: white; padding: 10px 20px; border-radius: 4px; position: fixed; top: 20px; right: 20px; z-index: 1000; font-weight: bold; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+
+    /* Daily Print Sheet */
+    .print-sheet { max-width: 900px; margin: 0 auto; background: #ffffff; padding: 32px 36px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); border: 1px solid #e2e8f0; }
+    .sheet-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 3px solid #1a365d; padding-bottom: 12px; margin-bottom: 16px; }
+    .company-info h1 { font-size: 22px; font-weight: 800; color: #1a365d; text-transform: uppercase; }
+    .company-info p { font-size: 12px; font-weight: 600; color: #4a5568; }
+    .sheet-meta { text-align: right; font-size: 13px; }
+    .pob-badge { display: inline-block; margin-top: 4px; background: #2b6cb0; color: white; padding: 3px 10px; font-weight: 700; border-radius: 4px; font-size: 12px; }
+    
+    .summary-box { background: #edf2f7; border: 1px solid #cbd5e0; border-radius: 6px; padding: 12px 16px; margin-bottom: 20px; }
+    .summary-box h3 { font-size: 13px; margin-bottom: 10px; border-bottom: 2px solid #cbd5e0; padding-bottom: 4px; }
+    .summary-grid { display: flex; flex-wrap: wrap; gap: 10px; }
+    .summary-item { background: #ffffff; border: 1px solid #e2e8f0; padding: 4px 10px; border-radius: 4px; font-size: 12px; font-weight: 600; }
+    .summary-count { color: #e53e3e; font-size: 14px; font-weight: 800; margin-left: 4px; }
+
+    .project-card { margin-bottom: 14px; border: 1px solid #cbd5e0; border-radius: 4px; overflow: hidden; page-break-inside: avoid; }
+    .project-card-header { background: #2d3748; color: white; padding: 7px 12px; display: flex; justify-content: space-between; font-size: 12px; font-weight: 600; }
+    table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    th { background: #edf2f7; text-align: left; padding: 6px 10px; border-bottom: 1px solid #cbd5e0; font-weight: 700; color: #4a5568; text-transform: uppercase; font-size: 11px; }
+    td { padding: 5px 10px; border-bottom: 1px solid #edf2f7; }
+    tr:nth-child(even) { background: #f7fafc; }
+    .center { text-align: center; }
+    .role-badge { font-weight: 600; color: #2b6cb0; }
+    .shared-badge { background: #fed7d7; color: #9b2c2c; font-size: 10px; padding: 2px 6px; border-radius: 3px; font-weight: 700; text-transform: uppercase; }
+
+    /* Monthly Master Controls */
+    #monthlyTab { display: none; }
+    .admin-controls { background: #fffaf0; border: 1px solid #ecc94b; padding: 15px; border-radius: 6px; margin-bottom: 15px; }
+    .admin-controls h4 { color: #b7791f; font-size: 13px; margin-bottom: 10px; text-transform: uppercase; font-weight: 800; }
+    
+    .filter-bar { background: #ebf8ff; border: 1px solid #bee3f8; padding: 12px 15px; border-radius: 6px; margin-bottom: 15px; display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+    .filter-bar label { font-size: 12px; font-weight: 700; color: #2b6cb0; }
+
+    .color-panel { display: inline-flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 700; color: #4a5568; margin-left: auto; }
+    .color-panel input[type="color"] { width: 28px; height: 28px; border: none; border-radius: 4px; cursor: pointer; background: transparent; }
+
+    .monthly-sheet { max-width: 100%; overflow-x: auto; margin: 0 auto; background: white; padding: 15px; border: 1px solid #e2e8f0; }
+    .month-selector { display: flex; justify-content: space-between; margin-bottom: 15px; align-items: center; }
+    .month-selector select { padding: 8px 12px; font-size: 15px; border-radius: 4px; border: 1px solid #cbd5e0; font-weight: bold; background: #fff; cursor: pointer; }
+    
+    /* Interactive Cells */
+    .editable-cell { cursor: pointer; text-align: center; font-weight: bold; }
+    .editable-cell:hover { box-shadow: inset 0 0 10px rgba(0,0,0,0.1); background: #f7fafc; }
+    .val-p { color: #22543d; font-weight: 900; }
+    .val-b { color: #b7791f; font-weight: 900; }
+    .val-leave { color: #c53030; font-weight: 900; }
+
+    .editable-text { cursor: text; padding: 2px 6px; border-radius: 3px; }
+    .editable-text:hover { background: #e2e8f0; outline: 1px dashed #718096; }
+
+    .del-btn { color: #e53e3e; cursor: pointer; font-size: 12px; font-weight: bold; padding: 2px 6px; border-radius: 3px; display: inline-block; }
+    .del-btn:hover { background: #fed7d7; }
+    .col-del { font-size: 10px; color: #c53030; margin-left: 3px; cursor: pointer; border-radius: 50%; padding: 1px 3px; }
+    .col-del:hover { background: #feb2b2; }
+
+    .sheet-footer { margin-top: 24px; display: flex; justify-content: space-between; align-items: flex-end; border-top: 1px solid #cbd5e0; padding-top: 12px; page-break-inside: avoid; }
+    .admin-sign { text-align: right; }
+    .admin-sign .title { font-size: 11px; color: #718096; margin-bottom: 2px; }
+    .admin-sign .name { font-size: 15px; font-weight: 800; color: #1a365d; }
+
+    /* Print Configuration */
+    @media print {
+      body { background: transparent !important; padding: 0 !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+      .nav-bar, .app-container, .no-print { display: none !important; }
+      .print-sheet, .monthly-sheet { border: none !important; box-shadow: none !important; padding: 0 !important; max-width: 100% !important; overflow: visible !important;}
+      @page { margin: 8mm; }
+      .landscape-print @page { size: A4 landscape; }
+      .portrait-print @page { size: A4 portrait; }
+    }
+  </style>
+</head>
+<body class="portrait-print" id="bodyEl">
+
+  <!-- ================= HARDCODED LOGIN MODAL ================= -->
+  <div id="authModal" class="auth-overlay">
+    <div class="auth-card">
+      <h3>Admin Login</h3>
+      <p>Lucky Hardware Attendance Portal</p>
+      
+      <input type="text" id="authUser" placeholder="Username" onkeydown="if(event.key==='Enter') submitAuth()">
+      <input type="password" id="authPass" placeholder="Password" onkeydown="if(event.key==='Enter') submitAuth()">
+      
+      <button id="authBtn" onclick="submitAuth()">Login</button>
+      <div id="authError" class="auth-error">Incorrect Username or Password.</div>
+    </div>
+  </div>
+
+  <div id="toast">Data Saved Successfully!</div>
+
+  <!-- Navigation -->
+  <div class="nav-bar">
+    <h2>LUCKY HARDWARE | Site Ops Portal</h2>
+    <button class="tab-btn active" onclick="switchTab('daily')">Daily Report</button>
+    <button class="tab-btn" onclick="switchTab('monthly')">Monthly Ledger Matrix</button>
+    
+    <!-- Logout Button -->
+    <button style="background: #e53e3e; padding: 6px 12px; font-size: 12px; margin-left:10px;" onclick="logout()">🔒 Logout</button>
+  </div>
+
+  <!-- ================= DAILY TAB ================= -->
+  <div id="dailyTab">
+    <div class="app-container">
+      <h3>1. Generate & Save Daily Attendance</h3>
+      <textarea id="rawInput" placeholder="Paste daily WhatsApp text here..."></textarea>
+      <div class="btn-row">
+        <button class="btn-primary" onclick="processDaily()">Preview Daily Sheet</button>
+        <button class="btn-success" onclick="saveToDatabase()">💾 Save to Database</button>
+        <button class="btn-primary" onclick="window.print()">🖨️ Print Daily PDF</button>
+      </div>
+    </div>
+
+    <div class="print-sheet" id="dailySheetView">
+      <div class="sheet-header">
+        <div class="company-info"><h1>Lucky Hardware</h1><p>Daily Site Manpower Verification</p></div>
+        <div class="sheet-meta">
+          <div><strong>Date:</strong> <span id="outDate">--/--/----</span></div>
+          <div class="pob-badge">Total Unique POB: <span id="outTotalPOB">0</span></div>
+        </div>
+      </div>
+      <div id="summaryContainer"></div>
+      <div id="projectsContainer"></div>
+      <div class="sheet-footer">
+        <div style="font-size: 11px; color: #a0aec0;">System Generated | Dev: Anesh Meghwar</div>
+        <div class="admin-sign"><div class="title">Verified By:</div><div class="name">Anesh Meghwar</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= MONTHLY TAB ================= -->
+  <div id="monthlyTab">
+    <div class="app-container" style="max-width: 100%;">
+      <div class="month-selector">
+        <h3>2. Monthly Master Ledger (Admin Authorized)</h3>
+        <select id="monthSelect" onchange="renderMonthlyTable()"></select>
+      </div>
+
+      <!-- FILTER & SORT BAR -->
+      <div class="filter-bar">
+        <div>
+          <label>🔍 Search Name:</label>
+          <input type="text" id="filterName" class="admin-input" placeholder="Type name..." oninput="renderMonthlyTable()">
+        </div>
+        <div>
+          <label>🛠️ Filter Trade:</label>
+          <select id="filterTrade" class="admin-select" onchange="renderMonthlyTable()">
+            <option value="ALL">All Trades</option>
+          </select>
+        </div>
+        <div>
+          <label>🔃 Sort By:</label>
+          <select id="sortBy" class="admin-select" onchange="renderMonthlyTable()">
+            <option value="default">Default Order</option>
+            <option value="name_asc">Name (A ➔ Z)</option>
+            <option value="name_desc">Name (Z ➔ A)</option>
+            <option value="trade">Trade / Designation</option>
+            <option value="days_desc">Highest Attendance (Days)</option>
+          </select>
+        </div>
+
+        <!-- COLOR CUSTOMIZER -->
+        <div class="color-panel">
+          <span>🎨 Colors:</span>
+          <label title="Identity Columns Color">ID: <input type="color" id="colThemeBlue" value="#8ea9db" onchange="updateColors()"></label>
+          <label title="Dates Columns Color">Dates: <input type="color" id="colThemeYellow" value="#ffe699" onchange="updateColors()"></label>
+          <label title="Summary Columns Color">Summary: <input type="color" id="colThemeGreen" value="#a9d08e" onchange="updateColors()"></label>
+          <button style="padding: 3px 8px; font-size: 11px;" onclick="resetColors()">Reset</button>
+        </div>
+      </div>
+      
+      <!-- ADMIN CONTROLS -->
+      <div class="admin-controls">
+        <h4>🔧 Admin Modification Controls</h4>
+        <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-bottom: 8px;">
+          <input type="text" id="manualName" class="admin-input" placeholder="Employee Name">
+          <input type="text" id="manualRole" class="admin-input" placeholder="Designation (e.g. Mason)">
+          <button class="btn-primary" onclick="addManualWorker()">+ Add Row (Worker)</button>
+          
+          <input type="text" id="customColName" class="admin-input" placeholder="New Column (e.g. Overtime)">
+          <button class="btn-success" onclick="addCustomColumn()">+ Add Column</button>
+        </div>
+        <div style="font-size:12px; color:#744210; font-weight:600;">
+          • Click Name/Trade directly to edit in place. • Use <span style="color:#e53e3e;">✕</span> to delete rows or individual date columns. • Click any cell to cycle [ P ➔ B ➔ AL ➔ CL ➔ SL ➔ Empty ].
+        </div>
+      </div>
+
+      <div class="btn-row">
+        <button class="btn-warning" onclick="exportNativeExcel()">📊 Export True .xlsx (ExcelJS)</button>
+        <button class="btn-primary" onclick="window.print()">🖨️ Print Landscape PDF</button>
+        <button class="btn-danger" onclick="resetMonthColumns()">🔄 Restore Hidden Columns</button>
+      </div>
+    </div>
+
+    <div class="monthly-sheet">
+      <div id="monthlyTableContainer" style="background:#fff;"></div>
+    </div>
+  </div>
+
+  <script>
+    // --- AUTHENTICATION ENGINE (Hardcoded) ---
+    function checkAuthStatus() {
+      const isLoggedIn = sessionStorage.getItem("lucky_auth_status");
+      const modal = document.getElementById("authModal");
+      if (isLoggedIn === "true") {
+        modal.style.display = "none";
+      } else {
+        modal.style.display = "flex";
+      }
+    }
+
+    function submitAuth() {
+      const user = document.getElementById("authUser").value.trim();
+      const pass = document.getElementById("authPass").value.trim();
+      const err = document.getElementById("authError");
+
+      err.style.display = "none";
+
+      // Hardcoded Credentials
+      if (user === "Anesh" && pass === "thatisgreat") {
+        sessionStorage.setItem("lucky_auth_status", "true");
+        document.getElementById("authModal").style.display = "none";
+        document.getElementById("authUser").value = "";
+        document.getElementById("authPass").value = "";
+        showToast("Welcome back, Anesh!");
+      } else {
+        err.style.display = "block";
+      }
+    }
+
+    function logout() {
+      sessionStorage.removeItem("lucky_auth_status");
+      document.getElementById("authUser").value = "";
+      document.getElementById("authPass").value = "";
+      document.getElementById("authError").style.display = "none";
+      switchTab('daily');
+      checkAuthStatus();
+    }
+
+    // --- DATABASE & STATE ---
+    let currentDailyWorkers = [];
+    let currentParsedDate = ""; 
+    let db = JSON.parse(localStorage.getItem("lucky_attendance_db")) || {};
+
+    let themeColors = JSON.parse(localStorage.getItem("lucky_theme_colors")) || {
+      blue: "#8ea9db",
+      yellow: "#ffe699",
+      green: "#a9d08e"
+    };
+
+    const designationMap = [
+  // --- Safety & Permit to Work (PTW) ---
+  { key: "PTW SUPERVISOR", label: "PTW Supervisor" },
+  { key: "PTW SUP", label: "PTW Supervisor" },
+  { key: "PTW", label: "PTW" },
+  { key: "HSE SUPERVISOR", label: "HSE Supervisor" },
+  { key: "HSE SUP", label: "HSE Supervisor" },
+  { key: "HSE OFFICER", label: "HSE Officer" },
+  { key: "HSE", label: "HSE" },
+  { key: "SAFETY OFFICER", label: "Safety Officer" },
+  { key: "SAFETY", label: "Safety" },
+  { key: "SAF", label: "Safety" },
+
+  // --- Engineering & Quality ---
+  { key: "PROJECT ENGINEER", label: "Project Engineer" },
+  { key: "CIVIL ENGINEER", label: "Civil Engineer" },
+  { key: "SITE ENGINEER", label: "Site Engineer" },
+  { key: "MECHANICAL ENGINEER", label: "Mechanical Engineer" },
+  { key: "MECH ENGINEER", label: "Mechanical Engineer" },
+  { key: "ELECTRICAL ENGINEER", label: "Electrical Engineer" },
+  { key: "ENGINEER", label: "Engineer" },
+  { key: "ENGR", label: "Engineer" },
+  { key: "ENGG", label: "Engineer" },
+  { key: "ENG", label: "Engineer" },
+  { key: "QA/QC", label: "QA/QC Engineer" },
+  { key: "QA/QC ENGINEER", label: "QA/QC Engineer" },
+  { key: "QC", label: "QA/QC Engineer" },
+  { key: "INSPECTOR", label: "Inspector" },
+  { key: "INSP", label: "Inspector" },
+
+  // --- Supervisory & Management ---
+  { key: "PROJECT MANAGER", label: "Project Manager" },
+  { key: "PM", label: "Project Manager" },
+  { key: "MANAGER", label: "Manager" },
+  { key: "MGR", label: "Manager" },
+  { key: "CIVIL SUPERVISOR", label: "Civil Supervisor" },
+  { key: "SUPERVISOR", label: "Supervisor" },
+  { key: "SUPER", label: "Supervisor" },
+  { key: "SUPR", label: "Supervisor" },
+  { key: "SUP", label: "Supervisor" },
+  { key: "FOREMAN", label: "Foreman" },
+  { key: "FM", label: "Foreman" },
+
+  // --- Administration & Office Support ---
+  { key: "ADMINISTRATOR", label: "Admin" },
+  { key: "ADMIN", label: "Admin" },
+  { key: "ADM", label: "Admin" },
+  { key: "DOCUMENT CONTROLLER", label: "Document Controller" },
+  { key: "DOC CONTROLLER", label: "Document Controller" },
+  { key: "DC", label: "Document Controller" },
+  { key: "HR", label: "HR" },
+  { key: "ACCOUNTANT", label: "Accountant" },
+  { key: "ACCT", label: "Accountant" },
+  { key: "CLERK", label: "Clerk" },
+  { key: "OFFICE BOY", label: "Office Boy" },
+  { key: "TEA BOY", label: "Tea Boy" },
+
+  // --- Specialized Trades & Technicians ---
+  { key: "AC TECHNICIAN", label: "AC Tech" },
+  { key: "AC TECH", label: "AC Tech" },
+  { key: "HVAC TECH", label: "HVAC Tech" },
+  { key: "HVAC", label: "HVAC Tech" },
+  { key: "TECHNICIAN", label: "Technician" },
+  { key: "TECH", label: "Technician" },
+  { key: "ELECTRICIAN", label: "Electrician" },
+  { key: "ELECTRIC", label: "Electrician" },
+  { key: "ELECT", label: "Electrician" },
+  { key: "ELEC", label: "Electrician" },
+  { key: "PLUMBER", label: "Plumber" },
+  { key: "PLUMB", label: "Plumber" },
+  { key: "PLMB", label: "Plumber" },
+  
+  // --- Carpenters & Folders ---
+  { key: "CARPENTER", label: "Carpenter" },
+  { key: "CARP", label: "Carpenter" },
+  { key: "CPTR", label: "Carpenter" },
+  { key: "FOLDER", label: "Folder" },
+  { key: "FOLD", label: "Folder" },
+  { key: "FLDR", label: "Folder" },
+  { key: "Scaffolder", label: "Scaffolder" },
+  { key: "Site Manager", label: "Site Manager" },
+  { key: "Shuttering", label: "Shuttering" },
+  { key: "Steel Fixer", label: "Steel Fixer" },
+
+
+
+
+
+  // --- Other Trades ---
+  { key: "WELDER", label: "Welder" },
+  { key: "WELD", label: "Welder" },
+  { key: "PAINTER", label: "Painter" },
+  { key: "PNT", label: "Painter" },
+  { key: "PNTR", label: "Painter" },
+  { key: "MASON", label: "Mason" },
+  { key: "MESAN", label: "Mason" }, // Common typo
+  { key: "MASN", label: "Mason" },
+  { key: "FITTER", label: "Fitter" },
+  { key: "FIT", label: "Fitter" },
+  { key: "PIPE FITTER", label: "Pipe Fitter" },
+  { key: "STEEL FIXER", label: "Steel Fixer" },
+  { key: "FIXER", label: "Steel Fixer" },
+  { key: "SCAFFOLDER", label: "Scaffolder" },
+  { key: "SCAFF", label: "Scaffolder" },
+  { key: "RIGGER", label: "Rigger" },
+  { key: "RIG", label: "Rigger" },
+
+  // --- Heavy Equipment & Transport ---
+  { key: "M OPERATOR", label: "M. Operator" },
+  { key: "M. OPERATOR", label: "M. Operator" },
+  { key: "CRANE OPERATOR", label: "Crane Operator" },
+  { key: "HEAVY EQUIPMENT OPERATOR", label: "HE Operator" },
+  { key: "OPERATOR", label: "Operator" },
+  { key: "OPER", label: "Operator" },
+  { key: "OPR", label: "Operator" },
+  { key: "DRIVER", label: "Driver" },
+  { key: "DRV", label: "Driver" },
+  { key: "LTV DRIVER", label: "LTV Driver" },
+  { key: "HTV DRIVER", label: "HTV Driver" },
+
+  // --- General Labor & Support ---
+  { key: "HELPER", label: "Helper" },
+  { key: "HEPER", label: "Helper" }, // Common typo
+  { key: "HELP", label: "Helper" },
+  { key: "USL", label: "USL" },      // Unskilled Labor
+  { key: "SKILLED LABOR", label: "Skilled Labor" },
+  { key: "GENERAL LABOR", label: "General Labor" },
+  { key: "LABOR", label: "Labor" },
+  { key: "LABOUR", label: "Labor" },
+  { key: "LAB", label: "Labor" }
+
+
+];
+    function switchTab(tab) {
+      document.getElementById('dailyTab').style.display = (tab === 'daily') ? 'block' : 'none';
+      document.getElementById('monthlyTab').style.display = (tab === 'monthly') ? 'block' : 'none';
+      
+      const body = document.getElementById('bodyEl');
+      if(tab === 'monthly') {
+        body.classList.remove('portrait-print');
+        body.classList.add('landscape-print');
+        populateMonthDropdown();
+        loadColorPickers();
+        renderMonthlyTable();
+      } else {
+        body.classList.remove('landscape-print');
+        body.classList.add('portrait-print');
+      }
+
+      const btns = document.querySelectorAll('.tab-btn');
+      btns[0].classList.toggle('active', tab === 'daily');
+      btns[1].classList.toggle('active', tab === 'monthly');
+    }
+
+    function showToast(msg) {
+      const toast = document.getElementById("toast");
+      toast.innerText = msg;
+      toast.style.display = "block";
+      setTimeout(() => toast.style.display = "none", 3000);
+    }
+
+    function saveDB() {
+      localStorage.setItem("lucky_attendance_db", JSON.stringify(db));
+    }
+
+    function loadColorPickers() {
+      document.getElementById("colThemeBlue").value = themeColors.blue;
+      document.getElementById("colThemeYellow").value = themeColors.yellow;
+      document.getElementById("colThemeGreen").value = themeColors.green;
+    }
+
+    function updateColors() {
+      themeColors.blue = document.getElementById("colThemeBlue").value;
+      themeColors.yellow = document.getElementById("colThemeYellow").value;
+      themeColors.green = document.getElementById("colThemeGreen").value;
+      localStorage.setItem("lucky_theme_colors", JSON.stringify(themeColors));
+      renderMonthlyTable();
+    }
+
+    function resetColors() {
+      themeColors = { blue: "#8ea9db", yellow: "#ffe699", green: "#a9d08e" };
+      localStorage.setItem("lucky_theme_colors", JSON.stringify(themeColors));
+      loadColorPickers();
+      renderMonthlyTable();
+    }
+
+    function parseDesignation(text) {
+      let cleaned = text.trim();
+      let detectedRole = "Staff";
+      for (const item of designationMap) {
+        const regex = new RegExp(`(^|\\s|\\.|\\-)${item.key.replace('.', '\\.')}(\\s|$)`, "i");
+        if (regex.test(cleaned)) {
+          detectedRole = item.label;
+          cleaned = cleaned.replace(regex, " ").replace(/\s+/g, " ").trim();
+          break;
+        }
+      }
+      cleaned = cleaned.replace(/[\.\-\,\:\;]+$/, '').trim();
+      return { name: cleaned, role: detectedRole };
+    }
+
+    function processDaily() {
+      let raw = document.getElementById("rawInput").value;
+      if (!raw) return;
+      raw = raw.replace(/[\u200B-\u200D\uFEFF\u200E\u200F]/g, '');
+
+      let reportDateStr = new Date().toLocaleDateString("en-GB");
+      let isoDate = new Date().toISOString().split('T')[0]; 
+
+      const dateMatch = raw.match(/Date\s*[:\-\s]*([0-9\/\-\.]+)/i);
+      if (dateMatch) {
+        const dStr = dateMatch[1].replace(/\./g, '-').replace(/\//g, '-'); 
+        reportDateStr = dStr;
+        const parts = dStr.split('-');
+        if(parts.length === 3) {
+          let year = parts[2].length === 2 ? "20" + parts[2] : parts[2];
+          let month = parts[1].padStart(2, '0');
+          let day = parts[0].padStart(2, '0');
+          isoDate = `${year}-${month}-${day}`;
+        }
+      }
+      
+      document.getElementById("outDate").innerText = reportDateStr;
+      currentParsedDate = isoDate; 
+
+      const rawBlocks = raw.split(/Company\s*[:\s]*Lucky\s*Hardware/i).filter(b => b.trim().length > 0);
+      const parsedProjects = [];
+      const seenSignatures = new Set();
+      const uniqueWorkersRegistry = new Set();
+      const roleCounts = {};
+      let totalUniquePOB = 0;
+      currentDailyWorkers = []; 
+
+      rawBlocks.forEach((block, idx) => {
+        const lines = block.split("\n").map(l => l.trim()).filter(Boolean);
+        let projectName = `General Site ${idx + 1}`; 
+        let location = "Main Site";
+        let subArea = "General";
+        const workers = [];
+
+        lines.forEach(line => {
+          if (/^Project\s*[:\-\s]+/i.test(line)) projectName = line.replace(/^Project\s*[:\-\s]+/i, "").trim();
+          else if (/^(Location|Area)\s*[:\-\s]+/i.test(line)) location = line.replace(/^(Location|Area)\s*[:\-\s]+/i, "").trim();
+          else if (/^[0-9]+[\.\:\)\s\-]+/.test(line)) {
+            const cleanLine = line.replace(/^[0-9]+[\.\:\)\s\-]+/, "").trim();
+            if (cleanLine.length > 2) {
+              const { name, role } = parseDesignation(cleanLine);
+              if (name) {
+                const fp = name.toLowerCase() + "_" + role.toLowerCase();
+                let isShared = uniqueWorkersRegistry.has(fp);
+                if (!isShared) {
+                  uniqueWorkersRegistry.add(fp);
+                  totalUniquePOB++;
+                  roleCounts[role] = (roleCounts[role] || 0) + 1;
+                  currentDailyWorkers.push({ id: fp, name: name, role: role });
+                }
+                workers.push({ name, role, area: subArea, isShared });
+              }
+            }
+          } else if (line.length > 3 && !line.match(/^(Company|Date|Project|Location|Area|POB)/i)) {
+            subArea = line.trim();
+          }
+        });
+
+        const sig = `${projectName.toLowerCase()}_${location.toLowerCase()}_${workers.length}`;
+        if (!seenSignatures.has(sig) && workers.length > 0) {
+          seenSignatures.add(sig);
+          parsedProjects.push({ projectName, location, workers });
+        }
+      });
+
+      document.getElementById("outTotalPOB").innerText = totalUniquePOB;
+      const summaryContainer = document.getElementById("summaryContainer");
+      if (Object.keys(roleCounts).length > 0) {
+        let html = `<div class="summary-box"><h3>Site Manpower Summary (By Trade)</h3><div class="summary-grid">`;
+        Object.keys(roleCounts).sort().forEach(r => html += `<div class="summary-item">${r} <span class="summary-count">${roleCounts[r]}</span></div>`);
+        summaryContainer.innerHTML = html + `</div></div>`;
+      } else summaryContainer.innerHTML = "";
+
+      const container = document.getElementById("projectsContainer");
+      container.innerHTML = "";
+      parsedProjects.forEach(proj => {
+        let rows = "";
+        proj.workers.forEach((w, i) => {
+          let stat = w.isShared ? `<span class="shared-badge">Multi-Site</span>` : (w.area !== "General" ? w.area : "Present");
+          rows += `<tr><td class="center" style="width: 30px;">${String(i+1).padStart(2,'0')}</td><td><strong>${w.name}</strong></td><td class="role-badge">${w.role}</td><td>${stat}</td></tr>`;
+        });
+        container.innerHTML += `<div class="project-card"><div class="project-card-header"><div>Project: ${proj.projectName}</div><div>Loc: ${proj.location}</div></div><table><thead><tr><th class="center">#</th><th>Name</th><th>Designation</th><th>Area/Status</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+      });
+    }
+
+    function saveToDatabase() {
+      if(currentDailyWorkers.length === 0) { alert("Please generate a daily sheet first!"); return; }
+      const [year, month, day] = currentParsedDate.split('-'); 
+      const monthKey = `${year}-${month}`; 
+      
+      initMonthStructure(monthKey);
+
+      currentDailyWorkers.forEach(w => {
+        if(!db[monthKey].roster[w.id]) {
+          db[monthKey].roster[w.id] = { name: w.name, role: w.role, createdAt: Date.now() };
+        }
+        if(!db[monthKey].attendance[day][w.id]) {
+          db[monthKey].attendance[day][w.id] = 'P';
+        }
+      });
+
+      saveDB();
+      showToast(`Saved ${day}/${month}/${year}. Records preserved!`);
+    }
+
+    function populateMonthDropdown() {
+      const select = document.getElementById("monthSelect");
+      const currentVal = select.value;
+      select.innerHTML = "";
+      
+      let d = new Date();
+      let currentYear = d.getFullYear();
+      let allMonths = [];
+      
+      for(let y = currentYear - 1; y <= currentYear + 1; y++) {
+        for(let m = 1; m <= 12; m++) allMonths.push(`${y}-${String(m).padStart(2,'0')}`);
+      }
+      
+      const dbMonths = Object.keys(db);
+      let combined = [...new Set([...allMonths, ...dbMonths])].sort().reverse();
+      
+      combined.forEach(k => {
+        let opt = document.createElement('option');
+        opt.value = k; 
+        let dateObj = new Date(k + "-01");
+        opt.text = dateObj.toLocaleString('default', { month: 'long', year: 'numeric' });
+        select.appendChild(opt);
+      });
+      
+      let nowStr = `${currentYear}-${String(d.getMonth()+1).padStart(2,'0')}`;
+      if(currentVal && combined.includes(currentVal)) select.value = currentVal;
+      else select.value = nowStr;
+    }
+
+    function initMonthStructure(monthKey) {
+      if(!db[monthKey]) db[monthKey] = { roster: {}, attendance: {}, deletedCols: [], customCols: [] };
+      if(!db[monthKey].roster) db[monthKey].roster = {};
+      if(!db[monthKey].attendance) db[monthKey].attendance = {};
+      if(!db[monthKey].deletedCols) db[monthKey].deletedCols = [];
+      if(!db[monthKey].customCols) db[monthKey].customCols = [];
+      
+      const [yearStr, monthStr] = monthKey.split('-');
+      const daysInMonth = new Date(parseInt(yearStr), parseInt(monthStr), 0).getDate();
+      for(let d=1; d<=daysInMonth; d++) {
+        const dayStr = String(d).padStart(2, '0');
+        if(!db[monthKey].attendance[dayStr]) db[monthKey].attendance[dayStr] = {};
+      }
+    }
+
+    function editWorkerField(monthKey, workerId, field, el) {
+      const currentVal = db[monthKey].roster[workerId][field];
+      const newVal = prompt(`Edit ${field.toUpperCase()}:`, currentVal);
+      if(newVal !== null && newVal.trim() !== "") {
+        db[monthKey].roster[workerId][field] = newVal.trim();
+        saveDB();
+        renderMonthlyTable();
+        showToast("Updated successfully!");
+      }
+    }
+
+    function deleteWorker(monthKey, workerId) {
+      const name = db[monthKey].roster[workerId]?.name || "this worker";
+      if(confirm(`Are you sure you want to delete ${name}?`)) {
+        delete db[monthKey].roster[workerId];
+        Object.keys(db[monthKey].attendance).forEach(d => {
+          if(db[monthKey].attendance[d][workerId]) delete db[monthKey].attendance[d][workerId];
+        });
+        saveDB();
+        renderMonthlyTable();
+        showToast("Worker removed.");
+      }
+    }
+
+    function addManualWorker() {
+      const monthKey = document.getElementById("monthSelect").value;
+      initMonthStructure(monthKey);
+      
+      const name = document.getElementById("manualName").value.trim();
+      const role = document.getElementById("manualRole").value.trim();
+      if(!name || !role) return alert("Please enter both Name and Designation.");
+      
+      const workerId = "usr_" + Date.now();
+      db[monthKey].roster[workerId] = { name: name, role: role, createdAt: Date.now() };
+      saveDB();
+      
+      document.getElementById("manualName").value = "";
+      document.getElementById("manualRole").value = "";
+      renderMonthlyTable();
+      showToast(name + " added to Roster!");
+    }
+
+    function deleteDateColumn(monthKey, dayStr) {
+      if(confirm(`Delete column for day ${dayStr}?`)) {
+        if(!db[monthKey].deletedCols.includes(dayStr)) {
+          db[monthKey].deletedCols.push(dayStr);
+          saveDB();
+          renderMonthlyTable();
+          showToast(`Day ${dayStr} column removed.`);
+        }
+      }
+    }
+
+    function addCustomColumn() {
+      const monthKey = document.getElementById("monthSelect").value;
+      initMonthStructure(monthKey);
+      
+      const colName = document.getElementById("customColName").value.trim();
+      if(!colName) return alert("Enter a column name.");
+      
+      const colId = "col_" + Date.now();
+      db[monthKey].customCols.push({ id: colId, name: colName });
+      saveDB();
+      
+      document.getElementById("customColName").value = "";
+      renderMonthlyTable();
+      showToast(`Custom column "${colName}" added!`);
+    }
+
+    function deleteCustomColumn(monthKey, colId) {
+      if(confirm("Delete this custom column?")) {
+        db[monthKey].customCols = db[monthKey].customCols.filter(c => c.id !== colId);
+        Object.keys(db[monthKey].roster).forEach(id => {
+          if(db[monthKey].roster[id][colId]) delete db[monthKey].roster[id][colId];
+        });
+        saveDB();
+        renderMonthlyTable();
+        showToast("Column deleted.");
+      }
+    }
+
+    function editCustomCell(monthKey, workerId, colId) {
+      const currentVal = db[monthKey].roster[workerId][colId] || "";
+      const newVal = prompt("Enter value:", currentVal);
+      if(newVal !== null) {
+        db[monthKey].roster[workerId][colId] = newVal.trim();
+        saveDB();
+        renderMonthlyTable();
+      }
+    }
+
+    function resetMonthColumns() {
+      const monthKey = document.getElementById("monthSelect").value;
+      if(confirm("Restore all hidden/deleted date columns for this month?")) {
+        db[monthKey].deletedCols = [];
+        saveDB();
+        renderMonthlyTable();
+        showToast("All date columns restored.");
+      }
+    }
+
+    function cycleAttendance(monthKey, dayStr, workerId) {
+      initMonthStructure(monthKey);
+      let currentVal = db[monthKey].attendance[dayStr][workerId] || '';
+      const nextState = {'': 'P', 'P': 'B', 'B': 'AL', 'AL': 'CL', 'CL': 'SL', 'SL': ''};
+      let newVal = nextState[currentVal];
+      
+      if (newVal === '') {
+        delete db[monthKey].attendance[dayStr][workerId];
+      } else {
+        db[monthKey].attendance[dayStr][workerId] = newVal;
+      }
+      
+      saveDB();
+      renderMonthlyTable(); 
+    }
+
+    function getPreparedRoster(monthKey) {
+      const monthData = db[monthKey];
+      const [yearStr, monthStr] = monthKey.split('-');
+      const daysInMonth = new Date(parseInt(yearStr), parseInt(monthStr), 0).getDate();
+      
+      const nameFilter = (document.getElementById("filterName")?.value || "").toLowerCase().trim();
+      const tradeFilter = document.getElementById("filterTrade")?.value || "ALL";
+      const sortCriterion = document.getElementById("sortBy")?.value || "default";
+
+      let rosterIds = Object.keys(monthData.roster).filter(id => {
+        const w = monthData.roster[id];
+        const matchName = !nameFilter || w.name.toLowerCase().includes(nameFilter);
+        const matchTrade = (tradeFilter === "ALL") || (w.role === tradeFilter);
+        return matchName && matchTrade;
+      });
+
+      rosterIds.sort((a, b) => {
+        const wa = monthData.roster[a];
+        const wb = monthData.roster[b];
+        if (sortCriterion === "name_asc") return wa.name.localeCompare(wb.name);
+        if (sortCriterion === "name_desc") return wb.name.localeCompare(wa.name);
+        if (sortCriterion === "trade") return wa.role.localeCompare(wb.role) || wa.name.localeCompare(wb.name);
+        if (sortCriterion === "days_desc") {
+          let countA = 0, countB = 0;
+          for(let d=1; d<=daysInMonth; d++) {
+            let dayStr = String(d).padStart(2, '0');
+            if (monthData.attendance[dayStr]?.[a] === 'P') countA++;
+            if (monthData.attendance[dayStr]?.[b] === 'P') countB++;
+          }
+          return countB - countA;
+        }
+        return (wa.createdAt || 0) - (wb.createdAt || 0);
+      });
+
+      return { rosterIds, daysInMonth, yearStr, monthStr };
+    }
+
+    function renderMonthlyTable() {
+      const monthKey = document.getElementById("monthSelect").value;
+      const container = document.getElementById("monthlyTableContainer");
+      initMonthStructure(monthKey);
+      
+      const monthData = db[monthKey];
+      const { rosterIds, daysInMonth, yearStr, monthStr } = getPreparedRoster(monthKey);
+
+      const tradeSelect = document.getElementById("filterTrade");
+      const currentTradeFilter = tradeSelect.value;
+      const allTrades = [...new Set(Object.values(monthData.roster).map(w => w.role))].filter(Boolean).sort();
+      tradeSelect.innerHTML = `<option value="ALL">All Trades</option>`;
+      allTrades.forEach(tr => {
+        let opt = document.createElement("option");
+        opt.value = tr; opt.innerText = tr;
+        if(tr === currentTradeFilter) opt.selected = true;
+        tradeSelect.appendChild(opt);
+      });
+
+      const shortMonths = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+      const shortDays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+      const monthName = shortMonths[parseInt(monthStr)-1];
+
+      const borderCSS = `border: 1pt solid #000000; text-align: center; vertical-align: middle;`;
+      const fontCSS = `font-family: Calibri, sans-serif; font-size: 11pt; color: #000000;`;
+      
+      const stBlue = `${borderCSS} ${fontCSS} background-color: ${themeColors.blue}; font-weight: bold;`;
+      const stYellow = `${borderCSS} ${fontCSS} background-color: ${themeColors.yellow}; font-weight: bold;`;
+      const stGreen = `${borderCSS} ${fontCSS} background-color: ${themeColors.green}; font-weight: bold;`;
+      const stCell = `${borderCSS} ${fontCSS} background-color: #ffffff;`;
+
+      let tableHtml = `<table id="excelTable" style="border-collapse: collapse; min-width: 100%; white-space: nowrap;">`;
+      
+      let activeDays = [];
+      for(let d=1; d<=daysInMonth; d++) {
+        let dayStr = String(d).padStart(2, '0');
+        if(!monthData.deletedCols.includes(dayStr)) {
+          activeDays.push({ d, dayStr });
+        }
+      }
+
+      tableHtml += `<tr style="height: 35px;">
+        <th class="no-print" style="${stBlue} width: 35px;">Action</th>
+        <th colspan="3" style="${stBlue}"></th>`;
+      
+      activeDays.forEach(item => {
+        tableHtml += `<th style="${stYellow} min-width: 48px;">
+          ${item.d}-${monthName}
+          <span class="no-print col-del" onclick="deleteDateColumn('${monthKey}', '${item.dayStr}')" title="Delete column">✕</span>
+        </th>`;
+      });
+
+      tableHtml += `<th style="${stYellow} width: 35px;"></th>`;
+
+      monthData.customCols.forEach(c => {
+        tableHtml += `<th style="${stGreen} min-width: 60px;">
+          ${c.name}
+          <span class="no-print col-del" onclick="deleteCustomColumn('${monthKey}', '${c.id}')" title="Delete column">✕</span>
+        </th>`;
+      });
+
+      tableHtml += `<th style="${stGreen}">TOTAL<br>DAYS</th>
+                    <th style="${stGreen}">Break<br>Day</th>
+                    <th style="${stGreen}">AL</th>
+                    <th style="${stGreen}">CL</th>
+                    <th style="${stGreen}">SL</th>
+                    <th style="${stGreen} width: 45px;"></th></tr>`;
+      
+      tableHtml += `<tr style="height: 32px;">
+        <th class="no-print" style="${stBlue}"></th>
+        <th style="${stBlue} width: 45px;">S No.</th>
+        <th style="${stBlue} width: 170px;">Name (Edit)</th>
+        <th style="${stBlue} width: 130px;">Designation</th>`;
+      
+      activeDays.forEach(item => {
+        let dayOfWeek = new Date(parseInt(yearStr), parseInt(monthStr)-1, item.d).getDay();
+        tableHtml += `<th style="${stYellow}">${shortDays[dayOfWeek]}</th>`;
+      });
+
+      tableHtml += `<th style="${stYellow}"></th>`;
+
+      monthData.customCols.forEach(() => {
+        tableHtml += `<th style="${stGreen}"></th>`;
+      });
+
+      tableHtml += `<th style="${stGreen}"></th>
+                    <th style="${stGreen}"></th>
+                    <th style="${stGreen}"></th>
+                    <th style="${stGreen}"></th>
+                    <th style="${stGreen}"></th>
+                    <th style="${stGreen}"></th></tr>`;
+
+      rosterIds.forEach((id, index) => {
+        const w = monthData.roster[id];
+        let tP = 0, tB = 0, tAL = 0, tCL = 0, tSL = 0;
+        
+        let rowHtml = `<tr style="height: 25px;">
+          <td class="no-print" style="${stCell}">
+            <span class="del-btn" onclick="deleteWorker('${monthKey}', '${id}')" title="Delete Row">✕</span>
+          </td>
+          <td style="${stCell}">${index + 1}</td>
+          <td style="${stCell} text-align: left; padding-left: 6px;">
+            <span class="editable-text" onclick="editWorkerField('${monthKey}', '${id}', 'name', this)">${w.name}</span>
+          </td>
+          <td style="${stCell} text-align: left; padding-left: 6px;">
+            <span class="editable-text" onclick="editWorkerField('${monthKey}', '${id}', 'role', this)">${w.role}</span>
+          </td>`;
+
+        activeDays.forEach(item => {
+          let val = (monthData.attendance[item.dayStr] && monthData.attendance[item.dayStr][id]) ? monthData.attendance[item.dayStr][id] : '';
+          
+          let colorClass = "";
+          if (val === 'P') { tP++; colorClass = "val-p"; }
+          if (val === 'B') { tB++; colorClass = "val-b"; }
+          if (val === 'AL') { tAL++; colorClass = "val-leave"; }
+          if (val === 'CL') { tCL++; colorClass = "val-leave"; }
+          if (val === 'SL') { tSL++; colorClass = "val-leave"; }
+          
+          rowHtml += `<td class="editable-cell ${colorClass}" style="${stCell}" onclick="cycleAttendance('${monthKey}', '${item.dayStr}', '${id}')">${val}</td>`;
+        });
+        
+        rowHtml += `<td style="${stCell}"></td>`;
+
+        monthData.customCols.forEach(c => {
+          let customVal = w[c.id] || "";
+          rowHtml += `<td class="editable-cell" style="${stCell}" onclick="editCustomCell('${monthKey}', '${id}', '${c.id}')">${customVal}</td>`;
+        });
+
+        rowHtml += `<td style="${stCell} background-color: #f7fafc; font-weight: bold; color: #c53030;">${tP}</td>
+                    <td style="${stCell}">${tB || ''}</td>
+                    <td style="${stCell}">${tAL || ''}</td>
+                    <td style="${stCell}">${tCL || ''}</td>
+                    <td style="${stCell}">${tSL || ''}</td>
+                    <td style="${stCell}"></td></tr>`;
+        
+        tableHtml += rowHtml;
+      });
+
+      if (rosterIds.length === 0) {
+        tableHtml += `<tr><td colspan="${activeDays.length + monthData.customCols.length + 11}" style="text-align:center; padding: 25px; font-family: Calibri;">No workers matched your filters.</td></tr>`;
+      }
+
+      tableHtml += `</table>`;
+      container.innerHTML = tableHtml;
+    }
+
+    async function exportNativeExcel() {
+      const monthKey = document.getElementById("monthSelect").value;
+      const monthData = db[monthKey];
+      const { rosterIds, daysInMonth, yearStr, monthStr } = getPreparedRoster(monthKey);
+
+      const shortMonths = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+      const shortDays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+      const monthName = shortMonths[parseInt(monthStr)-1];
+
+      const cleanHex = (hex) => "FF" + hex.replace('#', '').toUpperCase();
+      const argbBlue = cleanHex(themeColors.blue);
+      const argbYellow = cleanHex(themeColors.yellow);
+      const argbGreen = cleanHex(themeColors.green);
+
+      const workbook = new ExcelJS.Workbook();
+      const worksheet = workbook.addWorksheet('Attendance');
+      worksheet.views = [{ showGridLines: true }];
+
+      let activeDays = [];
+      for(let d=1; d<=daysInMonth; d++) {
+        let dayStr = String(d).padStart(2, '0');
+        if(!monthData.deletedCols.includes(dayStr)) {
+          activeDays.push({ d, dayStr });
+        }
+      }
+
+      let columnsConfig = [
+        { header: '', key: 'sno', width: 8 },
+        { header: '', key: 'name', width: 25 },
+        { header: '', key: 'role', width: 20 }
+      ];
+
+      activeDays.forEach(item => {
+        columnsConfig.push({ header: `${item.d}-${monthName}`, key: `d_${item.d}`, width: 6 });
+      });
+
+      columnsConfig.push({ header: '', key: 'spacer1', width: 5 });
+
+      monthData.customCols.forEach(c => {
+        columnsConfig.push({ header: c.name, key: `custom_${c.id}`, width: 14 });
+      });
+
+      columnsConfig.push(
+        { header: 'TOTAL DAYS', key: 'total_days', width: 14 },
+        { header: 'Break Day', key: 'break_day', width: 12 },
+        { header: 'AL', key: 'al', width: 8 },
+        { header: 'CL', key: 'cl', width: 8 },
+        { header: 'SL', key: 'sl', width: 8 },
+        { header: '', key: 'spacer2', width: 6 }
+      );
+
+      worksheet.columns = columnsConfig;
+
+      const row1 = worksheet.getRow(1);
+      row1.height = 28;
+
+      let row2Values = { sno: 'S No.', name: 'Name', role: 'Designation' };
+      activeDays.forEach(item => {
+        let dayOfWeek = new Date(parseInt(yearStr), parseInt(monthStr)-1, item.d).getDay();
+        row2Values[`d_${item.d}`] = shortDays[dayOfWeek];
+      });
+      const row2 = worksheet.addRow(row2Values);
+      row2.height = 24;
+
+      const thinBorder = {
+        top: { style: 'thin', color: { argb: 'FF000000' } },
+        left: { style: 'thin', color: { argb: 'FF000000' } },
+        bottom: { style: 'thin', color: { argb: 'FF000000' } },
+        right: { style: 'thin', color: { argb: 'FF000000' } }
+      };
+
+      const setHeaderStyle = (cell, argbColor) => {
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: argbColor } };
+        cell.font = { name: 'Calibri', size: 10, bold: true, color: { argb: 'FF000000' } };
+        cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+        cell.border = thinBorder;
+      };
+
+      let totalCols = columnsConfig.length;
+      for (let col = 1; col <= totalCols; col++) {
+        let cellR1 = row1.getCell(col);
+        let cellR2 = row2.getCell(col);
+
+        let targetColor = argbBlue;
+        if (col >= 4 && col <= 3 + activeDays.length + 1) {
+          targetColor = argbYellow;
+        } else if (col > 3 + activeDays.length + 1) {
+          targetColor = argbGreen;
+        }
+
+        setHeaderStyle(cellR1, targetColor);
+        setHeaderStyle(cellR2, targetColor);
+      }
+
+      rosterIds.forEach((id, index) => {
+        const w = monthData.roster[id];
+        let tP = 0, tB = 0, tAL = 0, tCL = 0, tSL = 0;
+
+        let rowValues = {
+          sno: index + 1,
+          name: w.name,
+          role: w.role
+        };
+
+        activeDays.forEach(item => {
+          let val = monthData.attendance[item.dayStr]?.[id] || '';
+          rowValues[`d_${item.d}`] = val;
+          if (val === 'P') tP++;
+          if (val === 'B') tB++;
+          if (val === 'AL') tAL++;
+          if (val === 'CL') tCL++;
+          if (val === 'SL') tSL++;
+        });
+
+        monthData.customCols.forEach(c => {
+          rowValues[`custom_${c.id}`] = w[c.id] || '';
+        });
+
+        rowValues['total_days'] = tP;
+        rowValues['break_day'] = tB || '';
+        rowValues['al'] = tAL || '';
+        rowValues['cl'] = tCL || '';
+        rowValues['sl'] = tSL || '';
+
+        const dataRow = worksheet.addRow(rowValues);
+        dataRow.height = 20;
+
+        for (let col = 1; col <= totalCols; col++) {
+          let cell = dataRow.getCell(col);
+          cell.border = thinBorder;
+          cell.font = { name: 'Calibri', size: 10 };
+          cell.alignment = { vertical: 'middle', horizontal: 'center' };
+
+          if (col === 2 || col === 3) {
+            cell.alignment = { vertical: 'middle', horizontal: 'left' };
+          }
+          if (columnsConfig[col - 1].key === 'total_days') {
+            cell.font = { name: 'Calibri', size: 10, bold: true, color: { argb: 'FFC53030' } };
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF7FAFC' } };
+          }
+        }
+      });
+
+      const buffer = await workbook.xlsx.writeBuffer();
+      const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      saveAs(blob, `Lucky_Hardware_Attendance_${monthKey}.xlsx`);
+    }
+
+    // Initialize Application
+    window.addEventListener("DOMContentLoaded", () => {
+      checkAuthStatus();
+      document.getElementById("rawInput").value = `Company Lucky Hardware 
+Date 04-10-2026 
+Project washroom
+Location Mine office 
+POB 4
+
+1. Ashok Kumar Sup
+2. Niaz Gull HSE
+3. Imran Civil Engineer
+4. Partab USL`;
+      processDaily();
+    });
+
+  </script>
+</body>
+</html>
